@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MuseTalk 自然交互数字人演示</title>
+    <!-- 添加TensorFlow.js和speech-commands库 -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands"></script>
+    <style>
+        body {
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            font-size: 28px;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .main-content {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+        }
+        .avatar-container {
+            flex: 3;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            min-height: 400px;
+        }
+        .conversation-container {
+            flex: 2;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+        }
+        #video-display {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #audio-element {
+            display: none;
+        }
+        .message-list {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding: 10px 0;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #e1f3fb;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        button {
+            background-color: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #40a9ff;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .microphone-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #1890ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .microphone-button.listening {
+            background-color: #ff4d4f;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 77, 79, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 77, 79, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 77, 79, 0);
+            }
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background-color: #ccc;
+        }
+        .status-dot.active {
+            background-color: #52c41a;
+        }
+        .status-dot.thinking {
+            background-color: #faad14;
+        }
+        .status-dot.speaking {
+            background-color: #1890ff;
+            animation: pulse-blue 1.5s infinite;
+        }
+        @keyframes pulse-blue {
+            0% {
+                box-shadow: 0 0 0 0 rgba(24, 144, 255, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 5px rgba(24, 144, 255, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(24, 144, 255, 0);
+            }
+        }
+        .wake-word-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .wake-word {
+            font-size: 18px;
+            color: #1890ff;
+            font-weight: bold;
+        }
+        
+        /* 添加麦克风检测和语音识别结果显示的样式 */
+        .mic-status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 4px;
+        }
+        .mic-indicator {
+            width: 30px;
+            height: 10px;
+            background-color: #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        .mic-level {
+            position: absolute;
+            height: 100%;
+            background-color: #52c41a;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+        .recognition-result {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #fffbe6;
+            border-radius: 4px;
+            border-left: 3px solid #faad14;
+            display: none;
+        }
+        .wake-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+            display: none;
+        }
+        .wake-status.active {
+            display: inline-block;
+            background-color: #d9f7be;
+            color: #389e0d;
+        }
+        .wake-status.inactive {
+            display: inline-block;
+            background-color: #fff1f0;
+            color: #cf1322;
+        }
+        
+        /* 添加麦克风设备选择样式 */
+        .mic-device-container {
+            display: flex;
+            flex-direction: column;
+            margin: 10px 0;
+        }
+        .mic-device-select {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .mic-device-select select {
+            flex: 1;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #d9d9d9;
+        }
+        .refresh-button {
+            margin-left: 5px;
+            background-color: #f0f0f0;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .refresh-button:hover {
+            background-color: #e0e0e0;
+        }
+        .device-hint {
+            font-size: 12px;
+            color: #666;
+            margin: 5px 0;
+            padding: 5px;
+            background-color: #fffbe6;
+            border-radius: 4px;
+        }
+        .volume-label {
+            margin-left: 10px;
+            font-size: 14px;
+            min-width: 80px;
+        }
+        .test-feedback {
+            margin-top: 5px;
+            font-size: 12px;
+        }
+        .test-feedback .warning {
+            color: #fa8c16;
+        }
+        .test-feedback .success {
+            color: #52c41a;
+        }
+        
+        /* 添加识别历史区域 */
+        .recognition-history-container {
+            margin-top: 20px;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .recognition-history-container h3 {
+            font-size: 16px;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+        }
+        .recognition-history {
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border: 1px solid #eee;
+            text-align: left;
+        }
+        .recognition-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+        }
+        .recognition-item:last-child {
+            border-bottom: none;
+        }
+        .recognition-time {
+            color: #999;
+            font-size: 12px;
+            min-width: 60px;
+            margin-right: 10px;
+        }
+        .recognition-text {
+            flex: 1;
+            word-break: break-all;
+        }
+        
+        /* 唤醒词检测相关样式 */
+        .wake-word-detection {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-radius: 8px;
+            border: 1px solid #d6e4ff;
+        }
+        .wake-word-status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .detection-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #ccc;
+            margin-right: 10px;
+        }
+        .detection-indicator.listening {
+            background-color: #52c41a;
+            animation: pulse-green 1.5s infinite;
+        }
+        @keyframes pulse-green {
+            0% {
+                box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 5px rgba(82, 196, 26, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(82, 196, 26, 0);
+            }
+        }
+        .model-status {
+            font-size: 13px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MuseTalk 自然交互数字人演示</h1>
+            <p class="subtitle">支持语音唤醒、连续对话、自然打断和低延迟响应</p>
+        </header>
+
+        <div class="main-content">
+            <div class="avatar-container">
+                <video id="video-display" autoplay playsinline></video>
+                <audio id="audio-element" autoplay></audio>
+            </div>
+
+            <div class="conversation-container">
+                <div class="status-indicator">
+                    <div id="status-dot" class="status-dot"></div>
+                    <div id="status-text">等待连接...</div>
+                </div>
+                
+                <!-- 添加麦克风状态显示 -->
+                <div class="mic-status">
+                    <div class="mic-indicator">
+                        <div id="mic-level" class="mic-level"></div>
+                    </div>
+                    <div class="volume-label">麦克风音量: <span id="volume-value">0</span>%</div>
+                    <div id="wake-status" class="wake-status">已唤醒</div>
+                </div>
+                
+                <!-- 添加麦克风设备选择 -->
+                <div class="mic-device-container">
+                    <div class="mic-device-select">
+                        <select id="mic-device-select">
+                            <option value="">-- 选择麦克风设备 --</option>
+                        </select>
+                        <button id="refresh-devices" class="refresh-button">刷新</button>
+                    </div>
+                    <div id="device-hint" class="device-hint">
+                        提示: 如未看到您的麦克风设备，请确保设备已连接并授予浏览器麦克风访问权限
+                    </div>
+                    <div id="test-feedback" class="test-feedback"></div>
+                </div>
+                
+                <!-- 添加语音识别结果显示 -->
+                <div id="recognition-result" class="recognition-result">
+                    正在识别...
+                </div>
+                
+                <div id="message-list" class="message-list">
+                    <!-- 消息将在这里动态添加 -->
+                </div>
+
+                <div class="controls">
+                    <button id="start-button">连接服务器</button>
+                    <button id="reset-button" disabled>重置对话</button>
+                    <div id="microphone-button" class="microphone-button" style="display: none;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 14C13.66 14 15 12.66 15 11V5C15 3.34 13.66 2 12 2C10.34 2 9 3.34 9 5V11C9 12.66 10.34 14 12 14Z" fill="white"/>
+                            <path d="M17.91 11C17.91 11 17.83 13.21 16.75 14.83C15.97 16 14.59 16.85 13.01 17.05C12.69 17.09 12.36 17.1 12.01 17.1C11.66 17.1 11.32 17.09 11 17.05C9.42 16.85 8.04 16 7.26 14.83C6.18 13.21 6.1 11 6.1 11H4.1C4.1 11 4.18 13.9 5.67 16.11C7 18.09 9.08 19.23 11.2 19.5V22H12.8V19.5C14.92 19.23 17 18.09 18.33 16.11C19.82 13.9 19.9 11 19.9 11H17.91Z" fill="white"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="wake-word-container">
+                    <p>唤醒词: <span class="wake-word">你好数字人</span> / <span class="wake-word">嘿数字人</span></p>
+                </div>
+                
+                <!-- 添加唤醒词检测状态区域 -->
+                <div class="wake-word-detection">
+                    <div class="wake-word-status">
+                        <div id="detection-indicator" class="detection-indicator"></div>
+                        <span id="detection-status">唤醒词检测: 未启动</span>
+                    </div>
+                    <div id="model-status" class="model-status">模型状态: 正在加载...</div>
+                    <button id="toggle-detection" style="display: none;">启用唤醒词检测</button>
+                </div>
+                
+                <!-- 添加识别历史区域 -->
+                <div class="recognition-history-container">
+                    <h3>语音识别历史</h3>
+                    <div id="recognition-history" class="recognition-history">
+                        <!-- 识别历史将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局变量
+        let peerConnection;
+        let dataChannel;
+        let localStream;
+        let isConnected = false;
+        let currentState = 'disconnected';
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let silenceDetectionTimer = null;
+        let silenceThreshold = 10; // 静音检测阈值
+        let silenceCounter = 0;
+        let audioAnalyser = null;
+        let audioDataArray = null;
+        let micVisualizerTimer = null;
+        let isAwake = false;
+        let audioInputDevices = []; // 存储音频输入设备列表
+        let selectedAudioDeviceId = ''; // 当前选择的设备ID
+        
+        // 唤醒词检测相关变量
+        let isWakeWordDetectionActive = false;
+        let wakeWordDetectionStream = null;
+        let wakeWordDetectionAudioContext = null;
+        let wakeWordMediaRecorder = null;
+        let wakeWordAudioChunks = [];
+        let wakeWordDetectionTimer = null;
+        let lastWakeWordCheck = 0;
+        const WAKE_WORD_CHECK_INTERVAL = 3000; // 每3秒检查一次唤醒词
+        
+        // 添加VAD相关配置
+        const VAD_CHECK_INTERVAL = 20; // VAD检测间隔(ms)
+        const VAD_WINDOW_SIZE = 500; // VAD窗口大小(ms)
+        const VAD_ACTIVATION_THRESHOLD = 0.4; // VAD激活阈值(40%)
+        const VOLUME_THRESHOLD = 15; // 音量阈值(15%)
+        let vadTimer = null;
+        let vadBuffer = [];
+        let vadActivationCount = 0;
+        let lastVadCheck = 0;
+        
+        // DOM元素
+        const videoElement = document.getElementById('video-display');
+        const audioElement = document.getElementById('audio-element');
+        const startButton = document.getElementById('start-button');
+        const resetButton = document.getElementById('reset-button');
+        const microphoneButton = document.getElementById('microphone-button');
+        const messageList = document.getElementById('message-list');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const micLevel = document.getElementById('mic-level');
+        const wakeStatus = document.getElementById('wake-status');
+        const recognitionResult = document.getElementById('recognition-result');
+        const volumeValue = document.getElementById('volume-value');
+        const micDeviceSelect = document.getElementById('mic-device-select');
+        const refreshDevicesButton = document.getElementById('refresh-devices');
+        const deviceHint = document.getElementById('device-hint');
+        const testFeedback = document.getElementById('test-feedback');
+        const recognitionHistory = document.getElementById('recognition-history');
+        const detectionIndicator = document.getElementById('detection-indicator');
+        const detectionStatus = document.getElementById('detection-status');
+        const modelStatus = document.getElementById('model-status');
+        const toggleDetectionButton = document.getElementById('toggle-detection');
+        
+        // 服务器配置
+        const serverUrl = 'http://192.168.202.10:8000'; // 服务器地址
+
+        // 按钮事件监听
+        startButton.addEventListener('click', startConnection);
+        resetButton.addEventListener('click', resetConversation);
+        microphoneButton.addEventListener('click', toggleMicrophone);
+        
+        // 麦克风设备相关事件监听
+        refreshDevicesButton.addEventListener('click', refreshAudioDevices);
+        micDeviceSelect.addEventListener('change', handleDeviceChange);
+        
+        // 页面加载时自动获取设备列表
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshAudioDevices();
+            // 初始化唤醒词检测模型
+            initWakeWordDetection();
+            // 自动连接服务器
+            startConnection();
+        });
+        
+        // 页面关闭前清理资源
+        window.addEventListener('beforeunload', () => {
+            stopWakeWordDetection();
+            stopRecording();
+            stopAudioStream();
+        });
+        
+        // 唤醒词检测按钮事件
+        toggleDetectionButton.addEventListener('click', toggleWakeWordDetection);
+        
+        // 初始化唤醒词检测模型
+        async function initWakeWordDetection() {
+            try {
+                modelStatus.textContent = '模型状态: 准备就绪';
+                toggleDetectionButton.style.display = 'inline-block';
+                toggleDetectionButton.textContent = '停止唤醒词检测';
+                console.log('唤醒词检测初始化完成');
+                
+                // 自动启动唤醒词检测
+                setTimeout(() => {
+                    if (!isWakeWordDetectionActive) {
+                        startWakeWordDetection();
+                    }
+                }, 1000);
+            } catch (error) {
+                console.error('初始化唤醒词检测失败:', error);
+                modelStatus.textContent = `模型状态: 初始化失败 (${error.message})`;
+            }
+        }
+        
+        // 获取音频输入设备列表
+        async function refreshAudioDevices() {
+            try {
+                // 检查浏览器是否支持MediaDevices
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    deviceHint.textContent = '您的浏览器不支持设备枚举功能，请尝试使用最新版Chrome或Firefox';
+                    return;
+                }
+                
+                // 首先请求媒体权限
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop()); // 立即停止流，只为了获取权限
+                
+                // 获取设备列表
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                
+                // 过滤出音频输入设备
+                audioInputDevices = devices.filter(device => device.kind === 'audioinput');
+                
+                // 清空现有选项
+                micDeviceSelect.innerHTML = '';
+                
+                // 添加默认选项
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '-- 选择麦克风设备 --';
+                micDeviceSelect.appendChild(defaultOption);
+                
+                // 添加设备选项
+                if (audioInputDevices.length === 0) {
+                    deviceHint.textContent = '未检测到麦克风设备，请检查设备连接或浏览器权限';
+                } else {
+                    audioInputDevices.forEach(device => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.textContent = device.label || `麦克风 (${device.deviceId.substring(0, 5)}...)`;
+                        micDeviceSelect.appendChild(option);
+                    });
+                    
+                    deviceHint.textContent = `检测到 ${audioInputDevices.length} 个麦克风设备`;
+                    
+                    // 如果之前有选择的设备，尝试重新选择
+                    if (selectedAudioDeviceId) {
+                        const deviceExists = audioInputDevices.some(device => device.deviceId === selectedAudioDeviceId);
+                        if (deviceExists) {
+                            micDeviceSelect.value = selectedAudioDeviceId;
+                        }
+                    } else if (audioInputDevices.length > 0) {
+                        // 默认选择第一个设备
+                        micDeviceSelect.value = audioInputDevices[0].deviceId;
+                        selectedAudioDeviceId = audioInputDevices[0].deviceId;
+                    }
+                }
+            } catch (error) {
+                console.error('获取音频设备失败:', error);
+                deviceHint.textContent = `获取设备失败: ${error.message}`;
+            }
+        }
+        
+        // 处理设备选择变更
+        function handleDeviceChange() {
+            selectedAudioDeviceId = micDeviceSelect.value;
+            
+            // 如果正在录音，停止当前录音并使用新设备重新开始
+            if (isRecording) {
+                stopRecording();
+                // 短暂延迟后使用新设备重新开始录音
+                setTimeout(() => {
+                    startRecording();
+                }, 300);
+            }
+            
+            // 如果正在进行唤醒词检测，重启检测以使用新设备
+            if (isWakeWordDetectionActive) {
+                stopWakeWordDetection();
+                // 短暂延迟后使用新设备重新启动唤醒词检测
+                setTimeout(() => {
+                    startWakeWordDetection();
+                }, 300);
+            }
+            
+            console.log(`已选择麦克风设备: ${selectedAudioDeviceId}`);
+            
+            // 测试麦克风
+            testMicrophone();
+        }
+        
+        // 测试选中的麦克风
+        async function testMicrophone() {
+            if (!selectedAudioDeviceId) {
+                testFeedback.textContent = '请先选择麦克风设备';
+                testFeedback.className = 'test-feedback warning';
+                return;
+            }
+            
+            try {
+                // 停止现有的可视化
+                stopMicVisualizer();
+                
+                // 使用选定的设备获取媒体流
+                const constraints = {
+                    audio: {
+                        deviceId: { exact: selectedAudioDeviceId }
+                    }
+                };
+                
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // 创建音频上下文
+                const audioContext = new AudioContext();
+                const audioSource = audioContext.createMediaStreamSource(localStream);
+                audioAnalyser = audioContext.createAnalyser();
+                audioAnalyser.fftSize = 256;
+                audioSource.connect(audioAnalyser);
+                
+                // 创建数据数组
+                audioDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+                
+                // 开始音量可视化
+                startMicVisualizer();
+                
+                testFeedback.textContent = '麦克风测试中...请说话';
+                testFeedback.className = 'test-feedback';
+                
+                // 10秒后自动停止测试
+                setTimeout(() => {
+                    if (!isRecording) {
+                        stopAudioStream();
+                        stopMicVisualizer();
+                    }
+                }, 10000);
+                
+            } catch (error) {
+                console.error('麦克风测试失败:', error);
+                testFeedback.textContent = `测试失败: ${error.message}`;
+                testFeedback.className = 'test-feedback warning';
+            }
+        }
+        
+        // 获取音量颜色
+        function getVolumeColor(level) {
+            if (level > 70) return '#ff4d4f'; // 高音量为红色
+            if (level > 30) return '#faad14'; // 中等音量为黄色
+            return '#52c41a'; // 低音量为绿色
+        }
+        
+        // 更新麦克风音量可视化函数
+        function startMicVisualizer() {
+            // 先停止现有的可视化
+            stopMicVisualizer();
+            
+            // 每100ms更新一次音量显示
+            micVisualizerTimer = setInterval(() => {
+                if (!audioAnalyser || !audioDataArray) return;
+                
+                const volume = getCurrentAudioLevel();
+                
+                // 更新音量指示器
+                // 将音量映射到0-100%
+                const levelPercentage = Math.min(100, Math.max(0, (volume / 128) * 100));
+                micLevel.style.width = `${levelPercentage}%`;
+                volumeValue.textContent = Math.round(levelPercentage);
+                
+                // 根据音量改变颜色
+                micLevel.style.backgroundColor = getVolumeColor(levelPercentage);
+                
+                // 更新测试反馈
+                if (volume < silenceThreshold) {
+                    testFeedback.textContent = '未检测到声音，请靠近麦克风说话';
+                    testFeedback.className = 'test-feedback warning';
+                } else if (levelPercentage > 80) {
+                    testFeedback.textContent = '音量过大，建议调低麦克风灵敏度或远离麦克风';
+                    testFeedback.className = 'test-feedback warning';
+                } else if (levelPercentage >= 10) {
+                    testFeedback.textContent = '麦克风工作正常';
+                    testFeedback.className = 'test-feedback success';
+                }
+            }, 100);
+        }
+        
+        // 初始化WebRTC连接
+        async function startConnection() {
+            try {
+                startButton.disabled = true;
+                startButton.textContent = '连接中...';
+                updateStatus('connecting', '正在连接...');
+                
+                // 创建RTCPeerConnection
+                const configuration = {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                };
+                
+                peerConnection = new RTCPeerConnection(configuration);
+                
+                // 创建数据通道
+                dataChannel = peerConnection.createDataChannel('chat');
+                setupDataChannel();
+                
+                // 监听ICE候选
+                peerConnection.onicecandidate = event => {
+                    if (event.candidate) {
+                        sendToServer('/webrtc/ice', { candidate: event.candidate });
+                    }
+                };
+                
+                // 处理媒体流
+                peerConnection.ontrack = event => {
+                    console.log('接收到媒体轨道:', event.track.kind);
+                    
+                    if (event.track.kind === 'video') {
+                        videoElement.srcObject = event.streams[0];
+                    } else if (event.track.kind === 'audio') {
+                        audioElement.srcObject = event.streams[0];
+                    }
+                };
+                
+                // 创建offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                // 发送offer到服务器
+                const response = await sendToServer('/webrtc/offer', { 
+                    sdp: peerConnection.localDescription 
+                });
+                
+                // 处理服务器返回的answer
+                if (response && response.sdp) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(response.sdp));
+                    console.log('已设置远程描述');
+                    
+                    // 更新状态为已连接
+                    isConnected = true;
+                    startButton.textContent = '已连接';
+                    resetButton.disabled = false;
+                    microphoneButton.style.display = 'flex';
+                    updateStatus('idle_listening', '空闲监听中');
+                    
+                    // 显示欢迎消息
+                    addMessage('助手', '你好！我是MuseTalk数字人助手。你可以通过唤醒词"你好数字人"或"嘿数字人"来开始对话，或点击麦克风按钮直接开始对话。');
+                    
+                    // 确保唤醒词检测是活跃的
+                    if (!isWakeWordDetectionActive) {
+                        startWakeWordDetection();
+                    }
+                } else {
+                    throw new Error('服务器未返回有效的SDP');
+                }
+            } catch (error) {
+                console.error('连接失败:', error);
+                startButton.disabled = false;
+                startButton.textContent = '重新连接';
+                updateStatus('disconnected', '连接失败，请重试');
+            }
+        }
+        
+        // 设置数据通道
+        function setupDataChannel() {
+            dataChannel.onopen = () => {
+                console.log('数据通道已打开');
+            };
+            
+            dataChannel.onclose = () => {
+                console.log('数据通道已关闭');
+            };
+            
+            dataChannel.onmessage = event => {
+                console.log('收到消息:', event.data);
+                handleServerMessage(JSON.parse(event.data));
+            };
+        }
+        
+        // 处理服务器消息
+        function handleServerMessage(message) {
+            switch (message.type) {
+                case 'state_update':
+                    updateStatus(message.state, getStateDisplayName(message.state));
+                    break;
+                    
+                case 'text_message':
+                    const role = message.role || 'assistant';
+                    addMessage(role === 'user' ? '用户' : '助手', message.text);
+                    break;
+                    
+                default:
+                    console.log('未知消息类型:', message);
+            }
+        }
+        
+        // 更新状态显示
+        function updateStatus(state, text) {
+            currentState = state;
+            statusText.textContent = text;
+            
+            // 重置状态点的所有类
+            statusDot.className = 'status-dot';
+            
+            // 根据状态设置样式
+            switch (state) {
+                case 'active_listening':
+                    statusDot.classList.add('active');
+                    microphoneButton.classList.add('listening');
+                    break;
+                    
+                case 'thinking':
+                    statusDot.classList.add('thinking');
+                    microphoneButton.classList.remove('listening');
+                    break;
+                    
+                case 'speaking':
+                    statusDot.classList.add('speaking');
+                    microphoneButton.classList.remove('listening');
+                    break;
+                    
+                case 'idle_listening':
+                    statusDot.classList.add('active');
+                    microphoneButton.classList.remove('listening');
+                    break;
+                    
+                default:
+                    microphoneButton.classList.remove('listening');
+                    break;
+            }
+        }
+        
+        // 获取状态显示名称
+        function getStateDisplayName(state) {
+            const stateNames = {
+                'idle_listening': '空闲监听中',
+                'active_listening': '正在倾听...',
+                'thinking': '思考中...',
+                'speaking': '正在回答...',
+                'interrupted': '被打断...',
+                'connecting': '正在连接...',
+                'disconnected': '未连接'
+            };
+            
+            return stateNames[state] || '未知状态';
+        }
+        
+        // 添加消息到消息列表
+        function addMessage(sender, text) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender === '用户' ? 'user-message' : 'assistant-message'}`;
+            messageDiv.textContent = text;
+            
+            messageList.appendChild(messageDiv);
+            messageList.scrollTop = messageList.scrollHeight;
+        }
+        
+        // 重置对话
+        async function resetConversation() {
+            if (!isConnected) return;
+            
+            try {
+                await sendToServer('/reset_conversation', {});
+                messageList.innerHTML = '';
+                recognitionHistory.innerHTML = ''; // 清空识别历史记录
+                addMessage('系统', '对话已重置');
+                updateStatus('idle_listening', '空闲监听中');
+            } catch (error) {
+                console.error('重置对话失败:', error);
+            }
+        }
+        
+        // 切换麦克风
+        async function toggleMicrophone() {
+            if (!isConnected) return;
+            
+            if (isRecording) {
+                // 已经在录音，停止录音
+                stopRecording();
+            } else {
+                // 开始录音
+                startRecording();
+            }
+        }
+        
+        // 开始录音
+        async function startRecording() {
+            try {
+                // 检查是否选择了麦克风
+                if (!selectedAudioDeviceId) {
+                    testFeedback.textContent = '请先选择麦克风设备';
+                    testFeedback.className = 'test-feedback warning';
+                    return;
+                }
+                
+                // 使用选定的设备获取媒体流
+                const constraints = {
+                    audio: {
+                        deviceId: { exact: selectedAudioDeviceId },
+                        sampleRate: 16000,
+                        channelCount: 1
+                    }
+                };
+                
+                // 请求麦克风权限
+                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // 创建音频上下文用于检测音量
+                const audioContext = new AudioContext();
+                const audioSource = audioContext.createMediaStreamSource(localStream);
+                audioAnalyser = audioContext.createAnalyser();
+                audioAnalyser.fftSize = 256;
+                audioSource.connect(audioAnalyser);
+                
+                // 创建数据数组用于存储音频分析数据
+                audioDataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+                
+                // 创建录音机
+                mediaRecorder = new MediaRecorder(localStream, {
+                    mimeType: 'audio/webm'
+                });
+                audioChunks = [];
+                
+                // 收集录音数据
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                // 录音结束时处理数据
+                mediaRecorder.onstop = async () => {
+                    // 显示识别中状态
+                    recognitionResult.style.display = 'block';
+                    recognitionResult.textContent = '正在识别...';
+                    
+                    // 将录音数据转换为blob
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    
+                    try {
+                        // 转换音频格式为WAV
+                        const wavBlob = await convertToWav(audioBlob);
+                        
+                        // 发送音频数据到服务器
+                        await sendAudioToServer(wavBlob);
+                    } catch (error) {
+                        console.error('音频处理失败:', error);
+                        recognitionResult.textContent = '音频处理失败，请重试';
+                    }
+                    
+                    // 清理资源
+                    audioChunks = [];
+                    stopAudioStream();
+                };
+                
+                // 开始录音
+                mediaRecorder.start();
+                isRecording = true;
+                updateStatus('active_listening', '正在倾听...');
+                
+                // 开始麦克风音量可视化
+                startMicVisualizer();
+                
+                // 启动VAD检测
+                startVadDetection();
+                
+                console.log('已开始录音');
+                testFeedback.textContent = '正在录音，请说话...';
+                testFeedback.className = 'test-feedback';
+                
+            } catch (error) {
+                console.error('开始录音失败:', error);
+                updateStatus('idle_listening', '无法访问麦克风');
+                testFeedback.textContent = `录音失败: ${error.message}`;
+                testFeedback.className = 'test-feedback warning';
+            }
+        }
+        
+        // 将音频转换为WAV格式
+        async function convertToWav(audioBlob) {
+            return new Promise((resolve, reject) => {
+                // 创建音频上下文
+                const audioContext = new AudioContext({
+                    sampleRate: 16000 // 确保采样率为16kHz
+                });
+                
+                console.log(`开始转换音频，原始大小: ${Math.round(audioBlob.size / 1024)}KB`);
+                
+                // 创建文件读取器
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        console.log(`音频数据读取完成，大小: ${Math.round(event.target.result.byteLength / 1024)}KB`);
+                        
+                        // 解码音频数据
+                        const audioData = await audioContext.decodeAudioData(event.target.result);
+                        console.log(`音频解码完成, 通道数: ${audioData.numberOfChannels}, 采样率: ${audioData.sampleRate}, 时长: ${audioData.duration.toFixed(2)}秒`);
+                        
+                        // 创建缓冲区
+                        const buffer = audioData.getChannelData(0);
+                        const samples = new Float32Array(buffer);
+                        
+                        // 重采样到16kHz如果需要
+                        let resampledData = samples;
+                        if (audioData.sampleRate !== 16000) {
+                            console.log(`需要重采样，从 ${audioData.sampleRate}Hz 到 16000Hz`);
+                            // 简单的线性重采样方法
+                            const resampleRatio = 16000 / audioData.sampleRate;
+                            const newLength = Math.floor(samples.length * resampleRatio);
+                            resampledData = new Float32Array(newLength);
+                            
+                            for (let i = 0; i < newLength; i++) {
+                                const oldIndex = Math.floor(i / resampleRatio);
+                                resampledData[i] = samples[oldIndex];
+                            }
+                        }
+                        
+                        // 创建WAV文件
+                        const wavFile = createWavFile(resampledData, 16000);
+                        
+                        // 创建WAV Blob
+                        const wavBlob = new Blob([wavFile], { type: 'audio/wav' });
+                        console.log(`WAV转换完成，新大小: ${Math.round(wavBlob.size / 1024)}KB`);
+                        
+                        resolve(wavBlob);
+                    } catch (error) {
+                        console.error('音频转换失败:', error);
+                        reject(error);
+                    } finally {
+                        audioContext.close();
+                    }
+                };
+                
+                reader.onerror = (error) => {
+                    console.error('读取音频文件失败:', error);
+                    reject(error);
+                };
+                
+                reader.readAsArrayBuffer(audioBlob);
+            });
+        }
+        
+        // 创建WAV文件
+        function createWavFile(samples, sampleRate) {
+            const buffer = new ArrayBuffer(44 + samples.length * 2);
+            const view = new DataView(buffer);
+            
+            // RIFF标识
+            writeString(view, 0, 'RIFF');
+            // RIFF块大小
+            view.setUint32(4, 36 + samples.length * 2, true);
+            // WAVE标识
+            writeString(view, 8, 'WAVE');
+            // fmt标识
+            writeString(view, 12, 'fmt ');
+            // fmt块大小
+            view.setUint32(16, 16, true);
+            // 音频格式（PCM）
+            view.setUint16(20, 1, true);
+            // 通道数
+            view.setUint16(22, 1, true);
+            // 采样率
+            view.setUint32(24, sampleRate, true);
+            // 每秒字节数 (采样率 * 每个样本的字节数 * 通道数)
+            view.setUint32(28, sampleRate * 2, true);
+            // 每个样本的字节数 (位深度 / 8 * 通道数)
+            view.setUint16(32, 2, true);
+            // 位深度
+            view.setUint16(34, 16, true);
+            // data标识
+            writeString(view, 36, 'data');
+            // data块大小
+            view.setUint32(40, samples.length * 2, true);
+            
+            // 写入样本数据
+            floatTo16BitPCM(view, 44, samples);
+            
+            return buffer;
+        }
+        
+        // 辅助函数：写入字符串
+        function writeString(view, offset, string) {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        }
+        
+        // 辅助函数：将Float32转换为16位PCM
+        function floatTo16BitPCM(output, offset, input) {
+            for (let i = 0; i < input.length; i++, offset += 2) {
+                const s = Math.max(-1, Math.min(1, input[i]));
+                output.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+            }
+        }
+        
+        // 停止录音
+        function stopRecording() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                // 停止VAD检测
+                if (vadTimer) {
+                    clearInterval(vadTimer);
+                    vadTimer = null;
+                }
+                
+                // 清除静音检测
+                if (silenceDetectionTimer) {
+                    clearInterval(silenceDetectionTimer);
+                    silenceDetectionTimer = null;
+                }
+                
+                // 停止音量可视化
+                stopMicVisualizer();
+                
+                silenceCounter = 0;
+                updateStatus('thinking', '思考中...');
+                console.log('已停止录音');
+                
+                // 如果唤醒词检测已停止，且不是在录音中，则重新启动唤醒词检测
+                setTimeout(() => {
+                    if (!isWakeWordDetectionActive && !isRecording) {
+                        startWakeWordDetection();
+                    }
+                }, 1000);
+            }
+        }
+        
+        // 获取当前音频音量
+        function getCurrentAudioLevel() {
+            if (!audioAnalyser || !audioDataArray) return 0;
+            
+            audioAnalyser.getByteFrequencyData(audioDataArray);
+            
+            // 计算平均音量
+            let sum = 0;
+            for (let i = 0; i < audioDataArray.length; i++) {
+                sum += audioDataArray[i];
+            }
+            const average = sum / audioDataArray.length;
+            
+            return average;
+        }
+        
+        // 停止麦克风音量可视化
+        function stopMicVisualizer() {
+            if (micVisualizerTimer) {
+                clearInterval(micVisualizerTimer);
+                micVisualizerTimer = null;
+            }
+            // 重置音量指示器
+            micLevel.style.width = '0%';
+        }
+        
+        // 停止音频流
+        function stopAudioStream() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => {
+                    track.stop();
+                });
+                
+                localStream = null;
+                console.log('已停止音频流');
+            }
+        }
+        
+        // 发送音频到服务器
+        async function sendAudioToServer(audioBlob) {
+            try {
+                // 添加用户消息
+                const formData = new FormData();
+                formData.append('audio_file', audioBlob, 'recording.wav');
+                
+                // 设置请求选项
+                const requestOptions = {
+                    method: 'POST',
+                    body: formData,
+                    // 不设置Content-Type，让浏览器自动设置multipart/form-data及边界
+                };
+                
+                // 发送音频数据到ASR服务
+                const response = await fetch(`http://192.168.202.10:9880/asr`, requestOptions);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`ASR服务返回错误(${response.status}):`, errorText);
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.text) {
+                    // 显示识别的文本
+                    recognitionResult.style.display = 'block';
+                    recognitionResult.textContent = `识别结果: ${result.text}`;
+                    
+                    // 检查是否包含唤醒词
+                    const containsWakeWord = checkWakeWord(result.text);
+                    updateWakeStatus(containsWakeWord);
+                    
+                    // 添加消息到消息列表
+                    addMessage('用户', result.text);
+                    
+                    // 添加到识别历史记录
+                    addToRecognitionHistory(result.text);
+                    
+                    // 通过数据通道发送消息
+                    if (dataChannel && dataChannel.readyState === 'open') {
+                        dataChannel.send(JSON.stringify({
+                            type: 'user_message',
+                            text: result.text
+                        }));
+                    }
+                    
+                    // 3秒后隐藏识别结果
+                    setTimeout(() => {
+                        recognitionResult.style.display = 'none';
+                    }, 3000);
+                } else {
+                    console.error('未能识别语音');
+                    recognitionResult.style.display = 'block';
+                    recognitionResult.textContent = '未能识别语音，请重试';
+                    updateStatus('idle_listening', '未能识别语音，请重试');
+                    
+                    // 3秒后隐藏识别结果
+                    setTimeout(() => {
+                        recognitionResult.style.display = 'none';
+                    }, 3000);
+                }
+                
+            } catch (error) {
+                console.error('发送音频失败:', error);
+                recognitionResult.style.display = 'block';
+                recognitionResult.textContent = '发送失败，请重试';
+                updateStatus('idle_listening', '发送失败，请重试');
+                
+                // 3秒后隐藏识别结果
+                setTimeout(() => {
+                    recognitionResult.style.display = 'none';
+                }, 3000);
+            }
+        }
+        
+        // 检测唤醒词
+        function checkWakeWord(text) {
+            if (!text) return false;
+            
+            // 去除标点符号和空格
+            const cleanedText = text.replace(/[.,，。！？!?、:：；;""''()（）\s]/g, '').toLowerCase();
+            console.log('清理后的文本:', cleanedText);
+            
+            // 定义唤醒词及其变体
+            const wakeWords = [
+                '你好数字人', '你好数字', '你好的数字人', '你好数人', 
+                '嘿数字人', '嘿数字', '嗨数字人', '嗨数字', 
+                '哈喽数字人', '哈喽数字', 'hello数字人',
+                '可以数字人', '嘿数学', '嘿书记'
+            ];
+            
+            // 精确匹配检测
+            for (const word of wakeWords) {
+                if (cleanedText.includes(word)) {
+                    console.log(`精确匹配到唤醒词: ${word}`);
+                    return true;
+                }
+            }
+            
+            // 模糊匹配 - 检测关键词组合
+            const hasGreeting = /你好|嘿|嗨|哈喽|hello|hi|hey|可以/.test(cleanedText);
+            const hasDigitalHuman = /数字人|数字|人工智能|智能助手|助手|机器人/.test(cleanedText);
+            
+            if (hasGreeting && hasDigitalHuman) {
+                console.log('通过关键词组合匹配到唤醒词');
+                return true;
+            }
+            
+            // 相似度检测 - 如果文本长度小于15个字符，计算与唤醒词的相似度
+            if (cleanedText.length < 15) {
+                // 设置相似度阈值
+                const similarityThreshold = 0.6; // 60%相似即可触发
+                
+                for (const word of ['你好数字人', '嘿数字人']) {
+                    const similarity = calculateSimilarity(cleanedText, word);
+                    console.log(`与"${word}"的相似度: ${similarity.toFixed(2)}`);
+                    
+                    if (similarity >= similarityThreshold) {
+                        console.log(`通过相似度匹配到唤醒词，相似度: ${similarity.toFixed(2)}`);
+                        return true;
+                    }
+                }
+            }
+            
+            // 所有检测都未通过
+            return false;
+        }
+        
+        // 计算两个字符串的相似度 (0-1之间，1表示完全相同)
+        function calculateSimilarity(str1, str2) {
+            // 如果两个字符串完全相同
+            if (str1 === str2) return 1.0;
+            
+            // 如果有一个是空字符串
+            if (str1.length === 0 || str2.length === 0) return 0.0;
+            
+            // 计算编辑距离
+            const distance = levenshteinDistance(str1, str2);
+            
+            // 计算相似度
+            return 1 - distance / Math.max(str1.length, str2.length);
+        }
+        
+        // 计算编辑距离 (Levenshtein距离)
+        function levenshteinDistance(str1, str2) {
+            const m = str1.length;
+            const n = str2.length;
+            
+            // 创建距离矩阵
+            const dp = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
+            
+            // 初始化
+            for (let i = 0; i <= m; i++) dp[i][0] = i;
+            for (let j = 0; j <= n; j++) dp[0][j] = j;
+            
+            // 填充矩阵
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,      // 删除
+                        dp[i][j - 1] + 1,      // 插入
+                        dp[i - 1][j - 1] + cost // 替换
+                    );
+                }
+            }
+            
+            return dp[m][n];
+        }
+        
+        // 更新唤醒状态显示
+        function updateWakeStatus(isWakeWordDetected) {
+            isAwake = isWakeWordDetected;
+            
+            if (isWakeWordDetected) {
+                wakeStatus.textContent = '已唤醒';
+                wakeStatus.classList.remove('inactive');
+                wakeStatus.classList.add('active');
+            } else {
+                wakeStatus.textContent = '未唤醒';
+                wakeStatus.classList.remove('active');
+                wakeStatus.classList.add('inactive');
+            }
+            
+            // 显示唤醒状态
+            wakeStatus.style.display = 'inline-block';
+            
+            // 5秒后隐藏唤醒状态
+            setTimeout(() => {
+                wakeStatus.style.display = 'none';
+            }, 5000);
+        }
+        
+        // 添加识别结果到历史记录
+        function addToRecognitionHistory(text) {
+            // 创建一个新的识别记录项
+            const item = document.createElement('div');
+            item.className = 'recognition-item';
+            
+            // 添加时间戳
+            const timeElement = document.createElement('div');
+            timeElement.className = 'recognition-time';
+            const now = new Date();
+            const timeString = now.getHours().toString().padStart(2, '0') + ':' + 
+                               now.getMinutes().toString().padStart(2, '0') + ':' + 
+                               now.getSeconds().toString().padStart(2, '0');
+            timeElement.textContent = timeString;
+            
+            // 添加识别文本
+            const textElement = document.createElement('div');
+            textElement.className = 'recognition-text';
+            textElement.textContent = text;
+            
+            // 组装项目
+            item.appendChild(timeElement);
+            item.appendChild(textElement);
+            
+            // 添加到历史记录区域
+            recognitionHistory.appendChild(item);
+            
+            // 滚动到底部
+            recognitionHistory.scrollTop = recognitionHistory.scrollHeight;
+        }
+        
+        // 发送数据到服务器
+        async function sendToServer(endpoint, data) {
+            try {
+                const response = await fetch(`${serverUrl}${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error(`发送到 ${endpoint} 失败:`, error);
+                return null;
+            }
+        }
+        
+        // 发送消息到数据通道
+        function sendMessage(message) {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify(message));
+                return true;
+            }
+            return false;
+        }
+        
+        // 切换唤醒词检测状态
+        async function toggleWakeWordDetection() {
+            if (isWakeWordDetectionActive) {
+                stopWakeWordDetection();
+            } else {
+                startWakeWordDetection();
+            }
+        }
+        
+        // 开始唤醒词检测
+        async function startWakeWordDetection() {
+            if (isWakeWordDetectionActive) return;
+            
+            try {
+                // 检查是否选择了麦克风
+                if (!selectedAudioDeviceId) {
+                    detectionStatus.textContent = '唤醒词检测: 请先选择麦克风设备';
+                    return;
+                }
+                
+                // 获取麦克风流
+                const constraints = {
+                    audio: {
+                        deviceId: { exact: selectedAudioDeviceId },
+                        sampleRate: 16000,
+                        channelCount: 1
+                    }
+                };
+                
+                wakeWordDetectionStream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // 创建音频上下文用于检测音量
+                wakeWordDetectionAudioContext = new AudioContext();
+                const audioSource = wakeWordDetectionAudioContext.createMediaStreamSource(wakeWordDetectionStream);
+                const analyser = wakeWordDetectionAudioContext.createAnalyser();
+                analyser.fftSize = 256;
+                audioSource.connect(analyser);
+                
+                // 创建录音机
+                wakeWordMediaRecorder = new MediaRecorder(wakeWordDetectionStream, {
+                    mimeType: 'audio/webm' // 使用webm格式，后续再转换
+                });
+                wakeWordAudioChunks = [];
+                
+                // 收集录音数据
+                wakeWordMediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        wakeWordAudioChunks.push(event.data);
+                    }
+                };
+                
+                // 录音结束时处理数据
+                wakeWordMediaRecorder.onstop = async () => {
+                    // 如果没有足够的音频数据，重新开始录音
+                    if (wakeWordAudioChunks.length === 0) {
+                        startWakeWordRecording();
+                        return;
+                    }
+                    
+                    // 将录音数据转换为blob
+                    const audioBlob = new Blob(wakeWordAudioChunks, { type: 'audio/webm' });
+                    
+                    try {
+                        // 转换音频格式为WAV
+                        const wavBlob = await convertToWav(audioBlob);
+                        
+                        // 发送音频数据到服务器进行唤醒词检测
+                        await checkWakeWordFromAudio(wavBlob);
+                    } catch (error) {
+                        console.error('唤醒词音频处理失败:', error);
+                    }
+                    
+                    // 清理资源
+                    wakeWordAudioChunks = [];
+                    
+                    // 如果唤醒词检测仍然处于活动状态，继续录音
+                    if (isWakeWordDetectionActive) {
+                        startWakeWordRecording();
+                    }
+                };
+                
+                // 开始录音
+                startWakeWordRecording();
+                
+                // 更新状态
+                isWakeWordDetectionActive = true;
+                detectionStatus.textContent = '唤醒词检测: 已启动，正在监听';
+                detectionIndicator.classList.add('listening');
+                toggleDetectionButton.textContent = '停止唤醒词检测';
+                
+                console.log('唤醒词检测已启动');
+                
+            } catch (error) {
+                console.error('启动唤醒词检测失败:', error);
+                detectionStatus.textContent = `唤醒词检测: 启动失败 (${error.message})`;
+                stopWakeWordDetection();
+            }
+        }
+        
+        // 开始唤醒词录音
+        function startWakeWordRecording() {
+            wakeWordMediaRecorder.start();
+            
+            // 设置定时器，定期停止录音并检查唤醒词
+            wakeWordDetectionTimer = setTimeout(() => {
+                if (wakeWordMediaRecorder && wakeWordMediaRecorder.state === 'recording') {
+                    wakeWordMediaRecorder.stop();
+                }
+            }, WAKE_WORD_CHECK_INTERVAL);
+        }
+        
+        // 检查音频中是否包含唤醒词
+        async function checkWakeWordFromAudio(audioBlob) {
+            try {
+                // 限制请求频率，避免过多请求
+                const now = Date.now();
+                if (now - lastWakeWordCheck < 2000) {
+                    return;
+                }
+                lastWakeWordCheck = now;
+                
+                console.log(`准备发送唤醒词检测请求，音频大小: ${Math.round(audioBlob.size / 1024)}KB`);
+                
+                // 创建表单数据
+                const formData = new FormData();
+                formData.append('audio_file', audioBlob, 'recording.wav');
+                
+                // 设置请求选项
+                const requestOptions = {
+                    method: 'POST',
+                    body: formData,
+                    // 不设置Content-Type，让浏览器自动设置multipart/form-data及边界
+                };
+                
+                // 发送音频数据到ASR服务
+                console.log('发送ASR请求到:', 'http://192.168.202.10:9880/asr');
+                const response = await fetch(`http://192.168.202.10:9880/asr`, requestOptions);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`ASR服务返回错误(${response.status}):`, errorText);
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('ASR请求成功, 结果:', result);
+                
+                if (result.text) {
+                    console.log('唤醒词检测ASR结果:', result.text);
+                    
+                    // 检查是否包含唤醒词
+                    const containsWakeWord = checkWakeWord(result.text);
+                    console.log(`检测到唤醒词: ${containsWakeWord}`);
+                    
+                    if (containsWakeWord) {
+                        // 触发唤醒
+                        handleWakeWordDetected();
+                    }
+                }
+            } catch (error) {
+                console.error('唤醒词检测请求失败:', error);
+            }
+        }
+        
+        // 处理唤醒词检测到的事件
+        function handleWakeWordDetected() {
+            console.log('检测到唤醒词!');
+            
+            // 停止唤醒词检测
+            stopWakeWordDetection();
+            
+            // 显示唤醒状态
+            updateWakeStatus(true);
+            
+            // 如果当前是空闲状态，则切换到倾听状态并开始录音
+            if ((currentState === 'idle_listening' || currentState === 'disconnected') && !isRecording) {
+                updateStatus('active_listening', '已唤醒，正在倾听...');
+                
+                // 稍微延迟以确保UI更新
+                setTimeout(() => {
+                    // 开始录音
+                    startRecording();
+                }, 500);
+            }
+        }
+        
+        // 停止唤醒词检测
+        function stopWakeWordDetection() {
+            // 清除定时器
+            if (wakeWordDetectionTimer) {
+                clearTimeout(wakeWordDetectionTimer);
+                wakeWordDetectionTimer = null;
+            }
+            
+            // 停止录音
+            if (wakeWordMediaRecorder && wakeWordMediaRecorder.state === 'recording') {
+                wakeWordMediaRecorder.stop();
+            }
+            
+            // 关闭音频上下文
+            if (wakeWordDetectionAudioContext) {
+                wakeWordDetectionAudioContext.close().catch(e => console.error('关闭音频上下文失败:', e));
+                wakeWordDetectionAudioContext = null;
+            }
+            
+            // 停止音频流
+            if (wakeWordDetectionStream) {
+                wakeWordDetectionStream.getTracks().forEach(track => track.stop());
+                wakeWordDetectionStream = null;
+            }
+            
+            // 清空音频数据
+            wakeWordAudioChunks = [];
+            wakeWordMediaRecorder = null;
+            
+            // 更新状态
+            isWakeWordDetectionActive = false;
+            detectionStatus.textContent = '唤醒词检测: 已停止';
+            detectionIndicator.classList.remove('listening');
+            toggleDetectionButton.textContent = '启用唤醒词检测';
+            
+            console.log('唤醒词检测已停止');
+        }
+
+        // 添加VAD检测相关函数
+        function startVadDetection() {
+            // 清空VAD缓冲区
+            vadBuffer = [];
+            vadActivationCount = 0;
+            lastVadCheck = Date.now();
+            
+            // 启动VAD检测定时器
+            vadTimer = setInterval(() => {
+                const currentVolume = getCurrentAudioLevel();
+                const normalizedVolume = (currentVolume / 128) * 100;
+                
+                // 只有当音量超过阈值时才进行VAD检测
+                if (normalizedVolume >= VOLUME_THRESHOLD) {
+                    vadBuffer.push(1);
+                } else {
+                    vadBuffer.push(0);
+                }
+                
+                // 保持缓冲区大小
+                const maxBufferSize = Math.ceil(VAD_WINDOW_SIZE / VAD_CHECK_INTERVAL);
+                if (vadBuffer.length > maxBufferSize) {
+                    vadBuffer.shift();
+                }
+                
+                // 每500ms检查一次VAD激活状态
+                const now = Date.now();
+                if (now - lastVadCheck >= VAD_WINDOW_SIZE) {
+                    const activationRate = vadBuffer.reduce((sum, val) => sum + val, 0) / vadBuffer.length;
+                    
+                    // 如果激活率低于阈值，增加静音计数
+                    if (activationRate < VAD_ACTIVATION_THRESHOLD) {
+                        silenceCounter++;
+                        
+                        // 连续3秒未达到激活阈值，停止录音
+                        if (silenceCounter > (3000 / VAD_WINDOW_SIZE)) {
+                            stopRecording();
+                        }
+                    } else {
+                        silenceCounter = 0;
+                    }
+                    
+                    lastVadCheck = now;
+                }
+            }, VAD_CHECK_INTERVAL);
+        }
+    </script>
+</body>
+</html> 

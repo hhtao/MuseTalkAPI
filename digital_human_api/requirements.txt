@@ -1,0 +1,41 @@
+# 基础依赖
+aiohttp==3.8.5
+aiortc==1.5.0
+websockets==11.0.3
+asyncio==3.4.3
+pydantic==2.4.2
+python-dotenv==1.0.0
+
+# 音频处理
+webrtcvad==2.0.10
+numpy==1.24.3
+sounddevice==0.4.6
+soundfile==0.12.1
+scipy==1.10.1
+
+# 深度学习
+torch==2.0.1
+transformers==4.30.2
+
+# 工具
+colorlog==6.7.0
+tqdm==4.66.1
+Pillow==10.0.0
+av==10.0.0
+uvicorn==0.23.2
+fastapi==0.103.1
+
+difflib
+wave
+typing
+logging
+json
+os
+sys
+signal
+uuid
+time
+pathlib
+threading
+base64
+re 

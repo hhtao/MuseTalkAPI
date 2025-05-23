@@ -1,0 +1,302 @@
+# MuseTalk Wrapper 默认配置文件
+
+# 视频生成设置
+generation:
+  # 默认输出目录
+  output_dir: "./outputs"
+  
+  # 默认FPS
+  fps: 25
+  
+  # 视频编码设置
+  video_codec: "libx264"
+  audio_codec: "aac"
+  audio_bitrate: "192k"
+  pixel_format: "yuv420p"
+  
+  # 字幕设置
+  subtitle:
+    enabled: false
+    font: "Arial"
+    font_size: 24
+    color: "#FFFFFF"
+    position: "bottom"
+    outline_color: "#000000"
+    outline_width: 2
+    format: "vtt"
+    offset: -0.3
+  
+  # 背景音乐设置
+  background_music:
+    enabled: false
+    volume_ratio: 0.3  # 语音与背景音乐音量比例
+
+# TTS服务配置
+tts:
+  # 默认TTS模型ID
+  default_model: "wang001"
+  
+  # TTS服务端点
+  server: "http://192.168.202.10:9880"
+  
+  # 默认文本切分方法
+  default_text_cut_method: "cut2"
+  
+  # 音频参数
+  audio:
+    sample_rate: 32000
+    channels: 1
+    bit_depth: 16
+    sentence_gap: 0.5  # 句子间隔(秒)
+    cn_speaking_rate: 4.1  # 中文每秒字符数
+    en_word_rate: 1.3  # 英文每秒单词数
+  
+  # 模型ID映射，将本地使用的模型ID映射到API支持的模型ID
+  model_mapping:
+    "wang001": "default"     # 王老师 -> API default模型
+    "5zu": "custom"          # 5zu -> API custom模型
+    "6zu": "default_v2"      # 6zu -> API default_v2模型
+  
+  # TTS模型配置
+  models:
+    wang001:
+      bert_base_path: "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
+      cnhuhbert_base_path: "GPT_SoVITS/pretrained_models/chinese-hubert-base"
+      device: "cuda"
+      is_half: true
+      t2s_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/GPT_weights_v2/wang005-e15.ckpt"
+      version: "v2"
+      vits_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/SoVITS_weights_v2/wang005_e8_s328.pth"
+      speaker_name: "王老师（标准）"
+      ref_audio_path: "/mnt/part2/Dteacher/MuseTalk/data/w001.wav"
+      prompt_text: "那个人的行为完全超出了我的忍耐底线"
+      prompt_lang: "zh"
+
+    liu001:
+      bert_base_path: "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
+      cnhuhbert_base_path: "GPT_SoVITS/pretrained_models/chinese-hubert-base"
+      device: "cuda"
+      is_half: true
+      t2s_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/GPT_weights_v2/liu1-e15.ckpt"
+      version: "v2"
+      vits_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/SoVITS_weights_v2/liu1_e8_s32.pth"
+      speaker_name: "刘雍潜"
+      ref_audio_path: "/mnt/part2/Dteacher/MuseTalk/data/liu01.wav"
+      prompt_text: "各位校长，今天非常高兴"
+      prompt_lang: "zh"
+
+    zhao01:
+      bert_base_path: "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
+      cnhuhbert_base_path: "GPT_SoVITS/pretrained_models/chinese-hubert-base"
+      device: "cuda"
+      is_half: true
+      t2s_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/GPT_weights_v2/zhao03-e15.ckpt"
+      version: "v2"
+      vits_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/SoVITS_weights_v2/zhao03_e8_s56.pth"
+      speaker_name: "赵萍"
+      ref_audio_path: "/mnt/part2/Dteacher/MuseTalk/data/zhao01.wav"
+      prompt_text: "为什么我每次提出的建议都会被无视"
+      prompt_lang: "zh"
+
+    enke01:
+      bert_base_path: "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
+      cnhuhbert_base_path: "GPT_SoVITS/pretrained_models/chinese-hubert-base"
+      device: "cuda"
+      is_half: true
+      t2s_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/GPT_weights_v2/enke01-e15.ckpt"
+      version: "v2"
+      vits_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/SoVITS_weights_v2/enke01_e8_s72.pth"
+      speaker_name: "王恩科"
+      ref_audio_path: "/mnt/part2/Dteacher/MuseTalk/data/enke01.wav"
+      prompt_text: "我喜欢在黄昏时,本泡一本清茶"
+      prompt_lang: "zh"
+
+    5zu:
+      bert_base_path: "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
+      cnhuhbert_base_path: "GPT_SoVITS/pretrained_models/chinese-hubert-base"
+      device: "cuda"
+      is_half: true
+      t2s_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/GPT_weights_v2/5zu-e15.ckpt"
+      version: "v2"
+      vits_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/SoVITS_weights_v2/5zu_e8_s400.pth"
+      speaker_name: "5zu（黄雅雯）"
+      ref_audio_path: "/mnt/part2/Dteacher/MuseTalk/data/audio/5zu.wav"
+      prompt_text: "我的作品被选参加展览，这是一种莫大的肯定"
+      prompt_lang: "zh"
+    
+    6zu:
+      bert_base_path: "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
+      cnhuhbert_base_path: "GPT_SoVITS/pretrained_models/chinese-hubert-base"
+      device: "cuda"
+      is_half: true
+      t2s_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/GPT_weights_v2/6zu-e15.ckpt"
+      version: "v2"
+      vits_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/SoVITS_weights_v2/6zu_e8_s304.pth"
+      speaker_name: "6zu（熊诗宇）"
+      ref_audio_path: "/mnt/part2/Dteacher/MuseTalk/data/audio/6zu.wav"
+      prompt_text: "我用积分换到了一张免费的电影票，太划算了"
+      prompt_lang: "zh"
+
+    zhou01:
+      bert_base_path: "GPT_SoVITS/pretrained_models/chinese-roberta-wwm-ext-large"
+      cnhuhbert_base_path: "GPT_SoVITS/pretrained_models/chinese-hubert-base"
+      device: "cuda"
+      is_half: true
+      t2s_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/GPT_weights_v2/zhou01-e15.ckpt"
+      version: "v2"
+      vits_weights_path: "/mnt/part2/Dteacher/GPT-SoVITS/SoVITS_weights_v2/zhou01_e8_s40.pth"
+      speaker_name: "周雁龄"
+      ref_audio_path: "/mnt/part2/Dteacher/MuseTalk/data/zhou01.wav"
+      prompt_text: "他居然在公共场所大声喧哗，简直是不可理喻"
+      prompt_lang: "zh"
+
+
+# 功能降级设置
+fallback:
+  # 是否启用智能降级
+  enabled: true
+  
+  # 降级顺序 (advanced -> standard -> basic)
+  fallback_order:
+    - "advanced"
+    - "standard"
+    - "basic"
+  
+  # 连续失败阈值
+  failure_threshold: 3
+  
+  # 失败统计窗口大小
+  history_size: 10
+
+# 目录配置
+paths:
+  # 输出视频目录
+  output_video_dir: "/mnt/part2/Dteacher/digital-teacher-frontend/resources/videos"
+  
+  # 字幕目录
+  subtitle_dir: "/mnt/part2/Dteacher/digital-teacher-frontend/resources/subtitles"
+  
+  # 临时目录
+  temp_dir: "./temp"
+  
+  # 数字人目录
+  avatar_dir: "/mnt/part2/Dteacher/MuseTalk/results/v15/avatars"
+  
+  # 静态文件目录
+  static_dir: "./static"
+  
+  # 模板目录
+  template_dir: "./templates"
+
+# 模型路径设置
+models:
+  # 基础模型路径
+  base_dir: "MuseTalk/models"
+  
+  # 具体模型路径
+  vae: 
+    path: "sd-vae"
+    config: "config.json"
+    model: "diffusion_pytorch_model.bin"
+  
+  unet:
+    path: "musetalkV15"
+    config: "musetalk.json"
+    model: "unet.pth"
+  
+  whisper:
+    path: "whisper"
+    config: "config.json"
+  
+  dwpose:
+    path: "dwpose"
+    model: "dw-ll_ucoco_384.pth"
+  
+  face_parse:
+    path: "face-parse-bisent"
+    model: "79999_iter.pth"
+  
+  sync_net:
+    path: "syncnet"
+    model: "latentsync_syncnet.pt"
+
+# 资源路径设置
+assets:
+  # 静态资源路径
+  base_dir: "../assets"
+  
+  # 数字人头像路径
+  avatars: "avatars"
+  
+  # 音频资源路径
+  audio: "audio"
+  
+  # 背景音乐路径
+  music: "music"
+
+# Web服务设置
+server:
+  # 主机地址
+  host: "0.0.0.0"
+  
+  # 端口
+  port: 5000
+  
+  # 并发任务上限
+  max_concurrent_tasks: 5
+  
+  # 任务超时时间（秒）
+  task_timeout: 300
+  
+  # 静态文件目录
+  static_dir: "static"
+  
+  # 输出文件目录
+  output_dir: "outputs"
+  
+  # WebSocket设置
+  websocket:
+    enabled: true
+    path: "/ws/status"
+    
+  # 跨域设置
+  cors:
+    enabled: true
+    allow_origins: ["*"]
+    allow_methods: ["*"]
+    allow_headers: ["*"]
+
+# 日志设置
+logging:
+  # 日志级别
+  level: "INFO"
+  
+  # 日志文件
+  file: "logs/musetalk_wrapper.log"
+  
+  # 是否输出到控制台
+  console: true
+  
+  # 日志格式
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # 日志轮转设置
+  max_size: 10485760  # 10MB
+  backup_count: 5
+
+# 系统参数
+system:
+  # 完成任务最大保留时间(秒)
+  max_task_age: 3600
+  
+  # 清理任务间隔(秒)
+  cleanup_interval: 1800
+  
+  # 最大模型缓存数量
+  max_cache_size: 3
+  
+  # GPU空闲超时时间(秒)
+  gpu_idle_timeout: 300
+  
+  # 调试模式
+  debug: true

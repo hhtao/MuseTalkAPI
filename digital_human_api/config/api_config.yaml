@@ -1,0 +1,31 @@
+# MuseTalk自然交互数字人API配置
+
+# 服务器配置
+host: "0.0.0.0"    # 监听主机
+port: 8080         # 监听端口
+
+# 外部服务配置
+ollama_api_url: "http://122.204.161.127:11434/api"
+ollama_model: "qwen3:32b"
+tts_api_url: "http://192.168.202.10:9880"
+asr_api_url: "http://192.168.202.10:9880"
+tts_voice_id: "default"
+
+# 会话配置
+max_conversation_history: 10  # 最大保存的对话轮数
+
+# 状态超时配置(秒)
+state_timeouts:
+  IDLE_LISTENING: null    # 无超时
+  ACTIVE_LISTENING: 10    # 10秒无输入超时
+  THINKING: 15            # 15秒思考超时
+  SPEAKING: null          # 无超时
+  INTERRUPTED: 5          # 5秒打断超时
+
+# 打断检测配置
+interruption_threshold: 300  # 打断检测阈值（毫秒）
+similarity_threshold: 0.7    # 语义相似度阈值
+
+# 其他配置
+debug: false              # 是否启用调试模式
+state_persist_path: "state_data.json"  # 状态持久化路径 

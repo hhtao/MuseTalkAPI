@@ -1,0 +1,6 @@
+avator_37:
+ preparation: True # your can set it to False if you want to use the existing avator, it will save time
+ bbox_shift: 5
+ video_path: "data/zhou01.mp4"
+ audio_clips:   
+     audio_0: "data/zhou01.wav"
